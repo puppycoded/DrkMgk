@@ -33,7 +33,8 @@ namespace DrkMgk
 
         public IntPtr Resolve()
         {
-            IntPtr address = BaseAddress;
+            IntPtr address = MemoryLiterate.Read<IntPtr>(ProcessHandle, BaseAddress);
+
             for (int i = 0; i < Offsets.Count - 1; ++i)
             {
                 address = MemoryLiterate.Read<IntPtr>(ProcessHandle, address + Offsets[i]);
