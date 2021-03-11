@@ -59,6 +59,9 @@
     <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Reloaded.Assembler">
+      <HintPath>..\Lib\Reloaded\Reloaded.Assembler.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -69,6 +72,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Assembler.cs" />
     <Compile Include="MarshalType.cs" />
     <Compile Include="MemoryRegion.cs" />
     <Compile Include="Pointer.cs" />
@@ -84,6 +88,14 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SafeMemoryHandle.cs" />
     <Compile Include="TypeConverter.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="..\Lib\FASM\FASM.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\Lib\FASM\FASMX64.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it.

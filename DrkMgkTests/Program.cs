@@ -9,55 +9,57 @@ namespace DrkMgkTests
     {
         static void Main(string[] args)
         {
-            string processName = "DarkSoulsRemastered";
-            Process[] results = Process.GetProcessesByName(processName);
-            if (results.Length == 0)
-            {
-                Console.WriteLine("No process with the name {0} found.", processName);
-                Console.ReadKey();
-                return;
-            }
-
-            Process process = results[0];
-            SafeMemoryHandle processHandle = Native.OpenProcess(process.Id);
-            if (processHandle.IsInvalid || processHandle.IsClosed)
-            {
-                Console.WriteLine("Unable to open process[{0}][{1}]", process.ProcessName, process.Id);
-                Console.ReadKey();
-                return;
-            }
-
-            Signature sigWorldChrBase = new Signature("?? ?? ?? ?? 0F 28 ?? E8 ?? ?? ?? ?? 48 ?? ?? 74 ?? 48 ?? ?? 48 ?? ?? 48");
-            var scanResults = sigWorldChrBase.ScanModule(process, processHandle, process.MainModule);
-            if (scanResults.Count == 0)
-            {
-                Console.WriteLine("Unable to addresses matching {0}", sigWorldChrBase);
-                Console.ReadKey();
-                return;
-            }
-
-            if (scanResults.Count > 1)
-            {
-                Console.WriteLine("Multiple addresses found for {0}", sigWorldChrBase);
-                Console.ReadKey();
-                return;
-            }
-
-            IntPtr worldChrBase = (IntPtr)(scanResults[0].ToInt64() + MemoryLiterate.Read<uint>(processHandle, scanResults[0]) + 4);
-            Pointer healthPtr = new Pointer(processHandle, worldChrBase, 0x68, 0x3E8);
-
             try
             {
-                int health = healthPtr.TryRead<int>();
-                Console.WriteLine("Player Health: {0}", health);
+                string processName = "DarkSoulsRemastered";
+                Process[] results = Process.GetProcessesByName(processName);
+                Process process = results[0];
+                SafeMemoryHandle processHandle = Native.OpenProcess(process.Id);
+
+                Func<IntPtr, IntPtr> resolveAddress64 = delegate (IntPtr address)
+                {
+                    return IntPtr.Add(address, MemoryLiterate.Read<IntPtr>(processHandle, address).ToInt32() + 4);
+                };
+
+                Signature dropItemLuaAob = new Signature(processHandle, "48 ?? ?? ?? ?? 48 ?? ?? ?? ?? 57 48 ?? ?? ?? ?? ?? ?? 0F B6 ?? 48 ?? ?? E8");
+                Signature dropItemBaseAob = new Signature(processHandle, "?? ?? ?? ?? 33 ?? E8 ?? ?? ?? ?? 80 ?? ?? ?? 44 ?? ?? 48 ?? ?? ?? ?? ?? ?? 8B");
+                Signature dtemDbgBaseAob = new Signature(processHandle, "?? ?? ?? ?? 89 ?? 3C 08 00 00 8B ?? ?? 89 ?? 40 08 00 00 8B ?? ?? 89 ?? 44 08 00 00 8B ?? ?? 89 ?? 48 08 00 00 C3");
+                dropItemLuaAob.ScanModule(process.MainModule);
+                dropItemBaseAob.ScanModule(process.MainModule);
+                dtemDbgBaseAob.ScanModule(process.MainModule);
+                IntPtr dropItemLua = dropItemLuaAob.Address;
+                IntPtr dropItemBase = dropItemBaseAob.ResolveAddressFromBytes();
+                IntPtr itemDbgBase = dtemDbgBaseAob.ResolveAddressFromBytes();
+                Pointer itemCategoryPtr = new Pointer(processHandle, itemDbgBase, 0x83C);
+                Pointer itemIdPtr = new Pointer(processHandle, itemDbgBase, 0x840);
+                Pointer itemDurabilityPtr = new Pointer(processHandle, itemDbgBase, 0x844);
+                Pointer itemQuantityPtr = new Pointer(processHandle, itemDbgBase, 0x848);
+                itemCategoryPtr.TryWrite(0x40000000);
+                itemIdPtr.TryWrite(0x15E);
+                itemDurabilityPtr.TryWrite(-1);
+                itemQuantityPtr.TryWrite(1);
+                string[] asm = new string[]
+                {
+                    $"mov rax,0x{dropItemBase.ToString("X")}",
+                    "mov rcx,[rax]",
+                    $"mov rax, 0x{dropItemLua.ToString("X")}",
+                    "sub rsp,0x38",
+                    "call rax",
+                    "add rsp,0x38",
+                    "ret"
+                };
+                byte[] byteCode = Assembler.Assemble64(asm);
+                using (var memory = new RemoteAlloc(processHandle, byteCode.Length))
+                {
+                    memory.Write(byteCode);
+                    SafeMemoryHandle threadHandle = Native.CreateThread(processHandle, memory.AllocationBase, IntPtr.Zero);
+                    Native.WaitForSingleObject(threadHandle);
+                }
             }
             catch (Exception e)
             {
-                Console.WriteLine(e.Message);
-                Console.ReadKey();
-                return;
+                Console.WriteLine(e);
             }
-
             Console.ReadKey();
         }
     }
