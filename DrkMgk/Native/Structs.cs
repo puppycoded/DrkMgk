@@ -14,4 +14,12 @@ namespace DrkMgk
         public MemoryProtectionType Protect;
         public MemoryAllocationType Type;
     }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct SecurityAttributes
+    {
+        public int Length;
+        public IntPtr SecurityDescriptor;
+        public bool InheritHandle;
+    }
 }

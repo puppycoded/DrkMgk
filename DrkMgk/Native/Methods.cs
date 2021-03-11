@@ -44,6 +44,33 @@ namespace DrkMgk
             return className.ToString();
         }
 
+        public static SafeMemoryHandle GetModuleHandle(string moduleName)
+        {
+            SafeMemoryHandle moduleHandle = Imports.GetModuleHandle(moduleName);
+            if (moduleHandle.IsInvalid)
+                throw new Win32Exception($"[Win32 Error: {Marshal.GetLastWin32Error()}] " +
+                    $"Unable handle of {moduleName}");
+            return moduleHandle;
+        }
+
+        public static IntPtr GetProcAddress(SafeMemoryHandle moduleHandle, string methodName)
+        {
+            IntPtr address = Imports.GetProcAddress(moduleHandle, methodName);
+            if (address == IntPtr.Zero)
+                throw new Win32Exception($"[Win32 Error: {Marshal.GetLastWin32Error()}] " +
+                    $"Unable to get address of 0x{moduleHandle.DangerousGetHandle().ToString("X")}({methodName})");
+            return address;
+        }
+
+        public static IntPtr GetProcAddress(string moduleName, string methodName)
+        {
+            IntPtr address = Imports.GetProcAddress(GetModuleHandle(moduleName), methodName);
+            if (address == IntPtr.Zero)
+                throw new Win32Exception($"[Win32 Error: {Marshal.GetLastWin32Error()}] " +
+                    $"Unable to get address of [{moduleName}]({methodName})");
+            return address;
+        }
+
         public static bool CloseHandle(IntPtr handle)
         {
             if (!Imports.CloseHandle(handle))
@@ -168,6 +195,72 @@ namespace DrkMgk
                     $"0x{processHandle.DangerousGetHandle().ToString("X")} from " +
                     $"0x{address.ToString($"X{IntPtr.Size}")}[Size: {size}]");
             return memInfo;
+        }
+
+        public static SafeMemoryHandle CreateThread(IntPtr startMethodAddress,
+            IntPtr parameterAddress,
+            SecurityAttributes threadAttributes = default(SecurityAttributes),
+            ThreadCreationFlags creationFlags = 0, int stackSize = 0)
+        {
+            int threadId;
+            SafeMemoryHandle threadHandle = Imports.CreateThread(
+                ref threadAttributes,
+                stackSize,
+                startMethodAddress,
+                parameterAddress,
+                creationFlags,
+                out threadId);
+            if (threadHandle.IsInvalid)
+                throw new Win32Exception($"[Win32 Error: {Marshal.GetLastWin32Error()}] " +
+                    $"Unable to create thread using " +
+                    $"0x{startMethodAddress.ToString($"X{IntPtr.Size}")}(0x{parameterAddress.ToString($"X{IntPtr.Size}")}) " +
+                    $"Attributes[InheritHandle: {threadAttributes.InheritHandle}, " +
+                    $"Length: {threadAttributes.Length}, " +
+                    $"SecurityDescriptor: {threadAttributes.SecurityDescriptor.ToString($"X{IntPtr.Size}")}] " +
+                    $"CreationFlags: 0x{creationFlags.ToString("X")} StackSize: {stackSize}");
+            return threadHandle;
+        }
+
+        public static SafeMemoryHandle CreateThread(SafeMemoryHandle processHandle,
+            IntPtr startMethodAddress, IntPtr parameterAddress,
+            SecurityAttributes threadAttributes = default(SecurityAttributes),
+            ThreadCreationFlags creationFlags = 0, int stackSize = 0)
+        {
+            int threadId;
+            SafeMemoryHandle threadHandle = Imports.CreateRemoteThread(
+                processHandle,
+                ref threadAttributes,
+                stackSize,
+                startMethodAddress,
+                parameterAddress,
+                creationFlags,
+                out threadId);
+            if (threadHandle.IsInvalid)
+                throw new Win32Exception($"[Win32 Error: {Marshal.GetLastWin32Error()}] " +
+                    $"Unable to create thread with " +
+                    $"0x{processHandle.DangerousGetHandle().ToString("X")} using " +
+                    $"0x{startMethodAddress.ToString($"X{IntPtr.Size}")}(0x{parameterAddress.ToString($"X{IntPtr.Size}")}) " +
+                    $"Attributes[InheritHandle: {threadAttributes.InheritHandle}, " +
+                    $"Length: {threadAttributes.Length}, " +
+                    $"SecurityDescriptor: {threadAttributes.SecurityDescriptor.ToString($"X{IntPtr.Size}")}] " +
+                    $"CreationFlags: 0x{creationFlags.ToString("X")} StackSize: {stackSize}");
+            return threadHandle;
+        }
+
+        public static bool WaitForSingleObject(SafeMemoryHandle handle, ObjectWaitType wait = ObjectWaitType.OBJECT_WAIT_INFINITE)
+        {
+            return Imports.WaitForSingleObject(handle, wait) != ObjectWaitType.OBJECT_WAIT_0;
+        }
+
+        public static SafeMemoryHandle LoadLibrary(string path, LoadLibraryFlags flags = 0)
+        {
+            SafeMemoryHandle moduleHandle = flags != 0
+                ? Imports.LoadLibraryEx(path, null, flags)
+                : Imports.LoadLibrary(path);
+            if (moduleHandle.IsInvalid)
+                throw new Win32Exception($"[Win32 Error: {Marshal.GetLastWin32Error()}] " +
+                    $"Unable to load library from {path} with Flags: {flags.ToString("X")}");
+            return moduleHandle;
         }
     }
 }

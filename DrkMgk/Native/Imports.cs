@@ -28,6 +28,15 @@ namespace DrkMgk
             StringBuilder lpClassName,
             int nMaxCount);
 
+        [DllImport("kernel32.dll", CharSet = CharSet.Ansi)]
+        internal static extern SafeMemoryHandle GetModuleHandle(
+            string lpModuleName);
+
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Ansi, ExactSpelling = true)]
+        internal static extern IntPtr GetProcAddress(
+            SafeMemoryHandle hModule,
+            string procName);
+
         [DllImport("kernel32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         internal static extern bool CloseHandle(
@@ -112,5 +121,39 @@ namespace DrkMgk
             IntPtr lpAddress,
             out MemoryBasicInformation lpBuffer,
             int dwLength);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        internal static extern SafeMemoryHandle CreateThread(
+            [In] ref SecurityAttributes lpThreadAttributes,
+            [Optional] int dwStackSize,
+            [Optional] IntPtr lpStartAddress,
+            IntPtr lpParameter,
+            [Optional] ThreadCreationFlags dwCreationFlags,
+            [Optional] out int lpThreadId);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        internal static extern SafeMemoryHandle CreateRemoteThread(
+            SafeMemoryHandle hProcess,
+            [In] ref SecurityAttributes lpThreadAttributes,
+            [Optional] int dwStackSize,
+            [Optional] IntPtr lpStartAddress,
+            IntPtr lpParameter,
+            [Optional] ThreadCreationFlags dwCreationFlags,
+            [Optional] out int lpThreadId);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        public static extern ObjectWaitType WaitForSingleObject(
+            SafeMemoryHandle handle,
+            ObjectWaitType wait);
+
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        internal static extern SafeMemoryHandle LoadLibrary(
+            [MarshalAs(UnmanagedType.LPStr)] string lpFileName);
+
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        internal static extern SafeMemoryHandle LoadLibraryEx(
+            [MarshalAs(UnmanagedType.LPStr)] string lpFileName,
+            [Optional] SafeMemoryHandle hFile,
+            LoadLibraryFlags dwFlags);
     }
 }
