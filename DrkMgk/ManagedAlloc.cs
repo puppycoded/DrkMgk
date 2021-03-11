@@ -70,7 +70,7 @@ namespace DrkMgk
             AllocationBase = Native.Alloc(address, Size);
         }
 
-        public RemoteAlloc(int size, SafeMemoryHandle processHandle, [Optional] IntPtr address)
+        public RemoteAlloc(SafeMemoryHandle processHandle, int size, [Optional] IntPtr address)
         {
             Size = size;
             ProcessHandle = processHandle;
@@ -85,9 +85,13 @@ namespace DrkMgk
         public void Dispose()
         {
             if (ProcessHandle == null)
+            {
                 Native.Free(AllocationBase);
+            }
             else
+            {
                 Native.Free(ProcessHandle, AllocationBase);
+            }
 
             ProcessHandle = null;
             AllocationBase = IntPtr.Zero;

@@ -6,7 +6,7 @@ namespace DrkMgk
 {
     public static class MemoryScanner
     {
-        public static List<IntPtr> ScanForBytes(in byte[] bytes, in byte[] buffer)
+        public static List<IntPtr> ScanForBytes(in byte[] buffer, in byte[] bytes)
         {
             List<IntPtr> results = new List<IntPtr>();
 
@@ -32,80 +32,106 @@ namespace DrkMgk
             return results;
         }
 
-        public static List<IntPtr> ScanForValue<T>(T value, in byte[] buffer) where T : struct
+        public static List<IntPtr> ScanForValue<T>(in byte[] buffer, T value) where T : struct
         {
-            return ScanForBytes(TypeConverter.ValueToBytes(value), buffer);
+            return ScanForBytes(buffer, TypeConverter.ValueToBytes(value));
         }
 
-        public static List<IntPtr> ScanRegionForBytes(SafeMemoryHandle processHandle, in byte[] bytes, in MemoryBasicInformation region)
+        public static List<IntPtr> ScanRegionForBytes(SafeMemoryHandle processHandle, in MemoryBasicInformation region, in byte[] bytes)
         {
             List<IntPtr> results = new List<IntPtr>();
-            List<IntPtr> addresses = ScanForBytes(bytes, MemoryLiterate.Read(processHandle, region.BaseAddress, region.RegionSize.ToInt32()));
+            List<IntPtr> addresses = ScanForBytes(MemoryLiterate.Read(processHandle, region.BaseAddress, region.RegionSize.ToInt32()), bytes);
             foreach (IntPtr address in addresses)
+            {
                 results.Add(new IntPtr(region.BaseAddress.ToInt64() + address.ToInt64()));
+            }
 
             return results;
         }
 
-        public static List<IntPtr> ScanRegionForValue<T>(SafeMemoryHandle processHandle, T value, in MemoryBasicInformation region) where T : struct
+        public static List<IntPtr> ScanRegionForValue<T>(SafeMemoryHandle processHandle, in MemoryBasicInformation region, T value) where T : struct
         {
             List<IntPtr> results = new List<IntPtr>();
-            List<IntPtr> addresses = ScanForValue(value, MemoryLiterate.Read(processHandle, region.BaseAddress, region.RegionSize.ToInt32()));
+            List<IntPtr> addresses = ScanForValue(MemoryLiterate.Read(processHandle, region.BaseAddress, region.RegionSize.ToInt32()), value);
             foreach (IntPtr address in addresses)
+            {
                 results.Add(new IntPtr(region.BaseAddress.ToInt64() + address.ToInt64()));
+            }
 
             return results;
         }
 
-        public static List<IntPtr> ScanRegionsForBytes(SafeMemoryHandle processHandle, in byte[] bytes, in List<MemoryBasicInformation> regions)
+        public static List<IntPtr> ScanRegionsForBytes(SafeMemoryHandle processHandle, in List<MemoryBasicInformation> regions, in byte[] bytes)
         {
             List<IntPtr> results = new List<IntPtr>();
             foreach (MemoryBasicInformation region in regions)
-                results.AddRange(ScanRegionForBytes(processHandle, bytes, region));
+            {
+                results.AddRange(ScanRegionForBytes(processHandle, region, bytes));
+            }
 
             return results;
         }
 
-        public static List<IntPtr> ScanRegionsForValue<T>(SafeMemoryHandle processHandle, T value, in List<MemoryBasicInformation> regions) where T : struct
+        public static List<IntPtr> ScanRegionsForValue<T>(SafeMemoryHandle processHandle, in List<MemoryBasicInformation> regions, T value) where T : struct
         {
             List<IntPtr> results = new List<IntPtr>();
             foreach (MemoryBasicInformation region in regions)
-                results.AddRange(ScanRegionForValue(processHandle, value, region));
+            {
+                results.AddRange(ScanRegionForValue(processHandle, region, value));
+            }
 
             return results;
         }
 
-        public static List<IntPtr> ScanModuleForBytes(in Process process, SafeMemoryHandle processHandle, in byte[] bytes, in ProcessModule module)
+        public static List<IntPtr> ScanModuleForBytes(SafeMemoryHandle processHandle, in ProcessModule module, in byte[] bytes)
         {
-            return ScanRegionsForBytes(processHandle, bytes, MemoryRegion.Load(process, processHandle, module));
+            return ScanRegionsForBytes(processHandle, MemoryRegion.LoadRegions(processHandle, module), bytes);
         }
 
-        public static List<IntPtr> ScanModuleForValue<T>(in Process process, SafeMemoryHandle processHandle, T value, in ProcessModule module) where T : struct
+        public static List<IntPtr> ScanModuleForValue<T>(SafeMemoryHandle processHandle, in ProcessModule module, T value) where T : struct
         {
-            return ScanRegionsForValue(processHandle, value, MemoryRegion.Load(process, processHandle, module));
+            return ScanRegionsForValue(processHandle, MemoryRegion.LoadRegions(processHandle, module), value);
         }
 
-        public static List<IntPtr> ScanAllModulesForBytes(in Process process, SafeMemoryHandle processHandle, in byte[] bytes)
+        public static List<IntPtr> ScanAllModulesForBytes(SafeMemoryHandle processHandle, in ProcessModuleCollection modules, in byte[] bytes)
         {
             List<IntPtr> results = new List<IntPtr>();
-            foreach (ProcessModule module in process.Modules)
-                foreach (IntPtr address in ScanModuleForBytes(process, processHandle, bytes, module))
+            foreach (ProcessModule module in modules)
+            {
+                foreach (IntPtr address in ScanModuleForBytes(processHandle, module, bytes))
+                {
                     results.Add(address);
+                }
+            }
 
             return results;
         }
 
-        public static List<IntPtr> ScanAllModulesForValue<T>(in Process process, SafeMemoryHandle processHandle, T value) where T : struct
+        public static List<IntPtr> ScanAllModulesForValue<T>(SafeMemoryHandle processHandle, in ProcessModuleCollection modules, T value) where T : struct
         {
             List<IntPtr> results = new List<IntPtr>();
-            foreach (ProcessModule module in process.Modules)
-                foreach (IntPtr address in ScanModuleForValue(process, processHandle, value, module))
+            foreach (ProcessModule module in modules)
+            {
+                foreach (IntPtr address in ScanModuleForValue(processHandle, module, value))
+                {
                     results.Add(address);
+                }
+            }
 
             return results;
         }
 
-        public static IntPtr RescanForBytes(SafeMemoryHandle processHandle, in byte[] bytes, IntPtr address)
+        public static List<IntPtr> ScanRangeForBytes(SafeMemoryHandle processHandle, IntPtr startAddress, IntPtr endAddress, in byte[] bytes)
+        {
+            return ScanRegionsForBytes(processHandle, MemoryRegion.LoadRegions(processHandle, startAddress, endAddress), bytes);
+        }
+
+        public static List<IntPtr> ScanRangeForValue<T>(SafeMemoryHandle processHandle, IntPtr startAddress, IntPtr endAddress, T value) where T : struct
+        {
+            return ScanRegionsForValue(processHandle, MemoryRegion.LoadRegions(processHandle, startAddress, endAddress), value);
+        }
+
+        public static IntPtr RescanForBytes(SafeMemoryHandle processHandle, IntPtr address, in byte[] bytes)
         {
             if (MemoryLiterate.Read(processHandle, address, bytes.Length) == bytes)
                 return address;
@@ -113,17 +139,17 @@ namespace DrkMgk
             return IntPtr.Zero;
         }
 
-        public static IntPtr RescanForValue<T>(SafeMemoryHandle processHandle, T value, IntPtr address) where T : struct
+        public static IntPtr RescanForValue<T>(SafeMemoryHandle processHandle, IntPtr address, T value) where T : struct
         {
-            return RescanForBytes(processHandle, TypeConverter.ValueToBytes(value), address);
+            return RescanForBytes(processHandle, address, TypeConverter.ValueToBytes(value));
         }
 
-        public static List<IntPtr> RescanForBytes(SafeMemoryHandle processHandle, in byte[] bytes, in List<IntPtr> addresses)
+        public static List<IntPtr> RescanForBytes(SafeMemoryHandle processHandle, in List<IntPtr> addresses, in byte[] bytes)
         {
             List<IntPtr> results = new List<IntPtr>();
             foreach (IntPtr address in addresses)
             {
-                IntPtr result = RescanForBytes(processHandle, bytes, address);
+                IntPtr result = RescanForBytes(processHandle, address, bytes);
                 if (result != IntPtr.Zero)
                     results.Add(result);
             }
@@ -131,12 +157,12 @@ namespace DrkMgk
             return results;
         }
 
-        public static List<IntPtr> RescanForValue<T>(SafeMemoryHandle processHandle, T value, in List<IntPtr> addresses) where T : struct
+        public static List<IntPtr> RescanForValue<T>(SafeMemoryHandle processHandle, in List<IntPtr> addresses, T value) where T : struct
         {
             List<IntPtr> results = new List<IntPtr>();
             foreach (IntPtr address in addresses)
             {
-                IntPtr result = RescanForValue(processHandle, value, address);
+                IntPtr result = RescanForValue(processHandle, address, value);
                 if (result != IntPtr.Zero)
                     results.Add(result);
             }

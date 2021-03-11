@@ -7,12 +7,15 @@ namespace DrkMgk
 {
     public class Signature : IDisposable
     {
+        public SafeMemoryHandle ProcessHandle { get; private set; }
         public string String { get; private set; }
         public byte[] Bytes { get; private set; }
         public byte[] BytesMask { get; private set; }
+        public IntPtr Address { get; private set; }
 
-        public Signature(string signature)
+        public Signature(SafeMemoryHandle processHandle, string signature)
         {
+            ProcessHandle = processHandle;
             String = signature.ToUpper();
             string sSig = string.Join("", String.Split(default(string[]), StringSplitOptions.RemoveEmptyEntries));
 
@@ -58,10 +61,8 @@ namespace DrkMgk
             GC.SuppressFinalize(this);
         }
 
-        public List<IntPtr> Scan(in byte[] buffer)
+        private void Scan(ref List<IntPtr> results, in byte[] buffer)
         {
-            List<IntPtr> results = new List<IntPtr>();
-
             for (int i = 0, j = 0; i < buffer.Length; ++i)
             {
                 if (buffer[i] == Bytes[j] || BytesMask[j] == 0x0)
@@ -80,63 +81,149 @@ namespace DrkMgk
                     j = 0;
                 }
             }
-
-            return results;
         }
 
-        public List<IntPtr> ScanRegion(SafeMemoryHandle processHandle, in MemoryBasicInformation region)
+        private void ScanRegion(ref List<IntPtr> results, in MemoryBasicInformation region)
         {
-            List<IntPtr> results = new List<IntPtr>();
-            List<IntPtr> addresses = Scan(MemoryLiterate.Read(processHandle, region.BaseAddress, region.RegionSize.ToInt32()));
-            foreach (IntPtr address in addresses)
-                results.Add(new IntPtr(region.BaseAddress.ToInt64() + address.ToInt64()));
-
-            return results;
-        }
-
-        public List<IntPtr> ScanRegions(SafeMemoryHandle processHandle, in List<MemoryBasicInformation> regions)
-        {
-            List<IntPtr> results = new List<IntPtr>();
-            foreach (MemoryBasicInformation region in regions)
-                results.AddRange(ScanRegion(processHandle, region));
-
-            return results;
-        }
-
-        public List<IntPtr> ScanModule(in Process process, SafeMemoryHandle processHandle, in ProcessModule module)
-        {
-            return ScanRegions(processHandle, MemoryRegion.Load(process, processHandle, module));
-        }
-
-        public List<IntPtr> ScanAllModules(in Process process, SafeMemoryHandle processHandle)
-        {
-            List<IntPtr> results = new List<IntPtr>();
-            foreach (ProcessModule module in process.Modules)
-                foreach (IntPtr address in ScanModule(process, processHandle, module))
-                    results.Add(address);
-
-            return results;
-        }
-
-        public IntPtr Rescan(SafeMemoryHandle processHandle, IntPtr address)
-        {
-            if (Scan(MemoryLiterate.Read(processHandle, address, Bytes.Length / 2)).Count == 0)
-                return IntPtr.Zero;
-
-            return address;
-        }
-
-        public List<IntPtr> Rescan(SafeMemoryHandle processHandle, in List<IntPtr> addresses)
-        {
-            List<IntPtr> results = new List<IntPtr>();
+            List<IntPtr> addresses = new List<IntPtr>();
+            Scan(ref addresses, MemoryLiterate.Read(ProcessHandle, region.BaseAddress, region.RegionSize.ToInt32()));
             foreach (IntPtr address in addresses)
             {
-                IntPtr result = Rescan(processHandle, address);
-                if (result != IntPtr.Zero)
-                    results.Add(result);
+                results.Add(new IntPtr(region.BaseAddress.ToInt64() + address.ToInt64()));
+            }
+        }
+
+        private void ScanRegions(ref List<IntPtr> results, in List<MemoryBasicInformation> regions)
+        {
+            foreach (MemoryBasicInformation region in regions)
+            {
+                ScanRegion(ref results, region);
             }
 
-            return results;
+        }
+
+        private void ScanModule(ref List<IntPtr> results, in ProcessModule module)
+        {
+            ScanRegions(ref results, MemoryRegion.LoadRegions(ProcessHandle, module));
+        }
+
+        private void ScanAllModules(ref List<IntPtr> results, in ProcessModuleCollection modules)
+        {
+            foreach (ProcessModule module in modules)
+            {
+                ScanModule(ref results, module);
+            }
+        }
+
+        private void ScanRange(ref List<IntPtr> results, IntPtr startAddress, IntPtr endAddress)
+        {
+            ScanRegions(ref results, MemoryRegion.LoadRegions(ProcessHandle, startAddress, endAddress));
+        }
+
+        private void Rescan(ref List<IntPtr> results, IntPtr address)
+        {
+            Scan(ref results, MemoryLiterate.Read(ProcessHandle, address, Bytes.Length));
+        }
+
+        public bool Scan(in byte[] buffer)
+        {
+            List<IntPtr> results = new List<IntPtr>();
+            Scan(ref results, buffer);
+            if (results.Count == 1)
+            {
+                Address = results[0];
+                return true;
+            }
+
+            return false;
+        }
+
+        public bool ScanRegion(in MemoryBasicInformation region)
+        {
+            List<IntPtr> results = new List<IntPtr>();
+            ScanRegion(ref results, region);
+            if (results.Count == 1)
+            {
+                Address = results[0];
+                return true;
+            }
+
+            return false;
+        }
+
+        public bool ScanRegions(in List<MemoryBasicInformation> regions)
+        {
+            List<IntPtr> results = new List<IntPtr>();
+            ScanRegions(ref results, regions);
+            if (results.Count == 1)
+            {
+                Address = results[0];
+                return true;
+            }
+
+            return false;
+        }
+
+        public bool ScanModule(in ProcessModule module)
+        {
+            List<IntPtr> results = new List<IntPtr>();
+            ScanModule(ref results, module);
+            if (results.Count == 1)
+            {
+                Address = results[0];
+                return true;
+            }
+
+            return false;
+        }
+
+        public bool ScanAllModules(in ProcessModuleCollection modules)
+        {
+            List<IntPtr> results = new List<IntPtr>();
+            ScanAllModules(ref results, modules);
+            if (results.Count == 1)
+            {
+                Address = results[0];
+                return true;
+            }
+
+            return false;
+        }
+
+        public bool ScanRange(IntPtr startAddress, IntPtr endAddress)
+        {
+            List<IntPtr> results = new List<IntPtr>();
+            ScanRange(ref results, startAddress, endAddress);
+            if (results.Count == 1)
+            {
+                Address = results[0];
+                return true;
+            }
+
+            return false;
+        }
+
+        public bool Rescan(IntPtr address)
+        {
+            List<IntPtr> results = new List<IntPtr>();
+            Rescan(ref results, address);
+            if (results.Count == 1)
+            {
+                return true;
+            }
+
+            Address = IntPtr.Zero;
+            return false;
+        }
+
+        public IntPtr ResolveAddressFromBytes()
+        {
+            switch (IntPtr.Size)
+            {
+                case 4: return MemoryLiterate.Read<IntPtr>(ProcessHandle, Address);
+                case 8: return new IntPtr(Address.ToInt64() + MemoryLiterate.Read<uint>(ProcessHandle, Address) + 4);
+                default: return IntPtr.Zero;
+            }
         }
     }
 }

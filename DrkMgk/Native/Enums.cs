@@ -1,9 +1,9 @@
-﻿using System;
+using System;
 
 namespace DrkMgk
 {
     [Flags]
-    public enum ProcessAccessRights : int
+    public enum ProcessAccessFlags : int
     {
         DELETE = 0x00010000,
         READ_CONTROL = 0x00020000,
@@ -27,7 +27,7 @@ namespace DrkMgk
     }
 
     [Flags]
-    public enum ThreadAccessRights : int
+    public enum ThreadAccessFlags : int
     {
         DELETE = 0x00010000,
         READ_CONTROL = 0x00020000,
@@ -60,12 +60,20 @@ namespace DrkMgk
         PAGE_GUARD = 0x100,
         PAGE_NOCACHE = 0x200,
         PAGE_WRITECOMBINE = 0x400,
+        PAGE_ACCESSIBLE = PAGE_READONLY
+            | PAGE_READWRITE
+            | PAGE_WRITECOPY
+            | PAGE_EXECUTE
+            | PAGE_EXECUTE_READ
+            | PAGE_EXECUTE_READWRITE
+            | PAGE_EXECUTE_WRITECOPY,
     }
 
     public enum MemoryAllocationState : int
     {
         MEM_COMMIT = 0x00001000,
         MEM_RESERVE = 0x00002000,
+        MEM_FREE = 0x00010000,
         MEM_RESET = 0x00080000,
         MEM_PHYSICAL = 0x00400000,
         MEM_TOP_DOWN = 0x00100000,

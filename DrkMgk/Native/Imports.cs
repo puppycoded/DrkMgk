@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -8,7 +8,7 @@ namespace DrkMgk
     {
         [DllImport("kernel32.dll", SetLastError = true)]
         internal static extern SafeMemoryHandle OpenProcess(
-            ProcessAccessRights dwDesiredAccess,
+            ProcessAccessFlags dwDesiredAccess,
             [MarshalAs(UnmanagedType.Bool)] bool bInheritHandle,
             int dwProcessId);
 
@@ -24,7 +24,7 @@ namespace DrkMgk
 
         [DllImport("user32.dll", SetLastError = true)]
         internal static extern int GetClassName(
-            IntPtr hWnd,
+            SafeMemoryHandle hWnd,
             StringBuilder lpClassName,
             int nMaxCount);
 
@@ -39,7 +39,7 @@ namespace DrkMgk
             SafeMemoryHandle hProcess,
             IntPtr dwAddress,
             [Out] byte[] lpBuffer,
-            int nSize,
+            int dwSize,
             out int lpBytesRead);
 
         [DllImport("kernel32.dll", SetLastError = true)]
@@ -47,20 +47,20 @@ namespace DrkMgk
         internal static extern bool WriteProcessMemory(
             SafeMemoryHandle hProcess,
             IntPtr dwAddress,
-            [Out] byte[] lpBuffer,
-            int nSize,
+            [In] byte[] lpBuffer,
+            int dwSize,
             out int iBytesWritten);
 
         [DllImport("kernel32.dll", EntryPoint = "RtlMoveMemory", SetLastError = true)]
         internal static extern void MoveMemory(
             void* destination,
             void* source,
-            int nSize);
+            int size);
 
         [DllImport("kernel32.dll", SetLastError = true)]
         internal static extern IntPtr VirtualAlloc(
             [Optional] IntPtr lpAddress,
-            int nSize,
+            int dwSize,
             MemoryAllocationState dwAllocationType,
             MemoryProtectionType dwProtect);
 
@@ -68,27 +68,27 @@ namespace DrkMgk
         internal static extern IntPtr VirtualAllocEx(
             SafeMemoryHandle hProcess,
             [Optional] IntPtr lpAddress,
-            int nSize,
+            int dwSize,
             MemoryAllocationState dwAllocationType,
             MemoryProtectionType dwProtect);
 
         [DllImport("kernel32.dll", SetLastError = true)]
         internal static extern bool VirtualFree(
             IntPtr lpAddress,
-            int nSize,
+            int dwSize,
             MemoryFreeType dwFreeType);
 
         [DllImport("kernel32.dll", SetLastError = true)]
         internal static extern bool VirtualFreeEx(
             SafeMemoryHandle hProcess,
             IntPtr lpAddress,
-            int nSize,
+            int dwSize,
             MemoryFreeType dwFreeType);
 
         [DllImport("kernel32.dll", SetLastError = true)]
         internal static extern bool VirtualProtect(
             IntPtr lpAddress,
-            int nSize,
+            int dwSize,
             MemoryProtectionType flNewProtect,
             out MemoryProtectionType lpflOldProtect);
 
@@ -96,7 +96,7 @@ namespace DrkMgk
         internal static extern bool VirtualProtectEx(
             SafeMemoryHandle hProcess,
             IntPtr lpAddress,
-            int nSize,
+            int dwSize,
             MemoryProtectionType flNewProtect,
             out MemoryProtectionType lpflOldProtect);
 
